@@ -1,0 +1,194 @@
+
+com.global.domain.Account
+
+Account domain 에 필요한 data
+  - 로그인
+  - 프로필
+  - 알림설정
+
+
+com.global.account.AccountController
+
+- GET"/signup" 요청을 받아서 account/sign-up.html 페이지에 보여줌
+- 회원 가입 폼에서 입력 받을 수 있는 정보를
+- "닉네임", "이메일", "패스워드" 폼 객체로 제공함
+
+
+com.global.config.SecurityConfig
+
+Ctrl + O (overriding)
+  ㄴ configure(http:HttpSecurity) 선택
+
+
+<test>
+
+com.global.account.AccountController 에서
+Ctrl + Shift + T : text 단축키
+
+
+- 회원가입 뷰 작성하기
+  - bootstrap
+      네비게이션
+      폼
+  - thymeleaf
+    SignUpForm 타입 객체를 폼 객체로 설정함
+  - 웹(HTML, CSS, JavaScript)
+    검증기능(validation) 설정
+      닉네임(3~20자, 입력필수)
+      이메일(이메일형식, 입력필수)
+      패스워드(8~50자, 입력필수)
+
+
+com.global.config.SecurityConfig
+
+Ctrl + O (overriding)
+  ㄴ configure(web:WebSecurity) 선택
+
+
+com.global.mail.ConsoleMailSender 를
+@Profile("local") @Component 로 설정하고
+application.properties 파일에서
+spring.profiles.active=local 로 설정하면
+com.global.account.AccountController 에서
+private final JavaMailSender javaMailSender 를 선언하고
+signUpSubmit 메소드에서 이메일을 전송할 수 있게 됨
+
+
+
+com.global.account.AccountControllerTest
+
+실제로 mail 을 전송하는지 test 하기
+@MockBean  <-- SpringBootTest 에서 제공하는 annotation 으로,
+               Mock 객체들을 Spring 의 ApplicationContext 에 넣어줌
+               같은 type 의 Bean 이 이미 있는 경우, MockBean 으로 교체함
+JavaMailSender javaMailSender;
+
+
+회원 가입 처리 확인하기 - 입력값 오류 테스트 / 입력값 정상 테스트
+
+
+회원가입할 때 입력한
+비밀번호를 그대로(평문으로) 저장하면 아주 위험함
+ ㄴ 인코딩해서 저장해야 함
+ Account Entity 를 저장할 때 password 를 encoding 함
+           ㄴ DB 의 table
+
+Spring Security PasswordEncoder
+  - PasswordEncoderFactories.createDelegatingPasswordEncoder()
+  -    ㄴ 여러 가지 hash algorithm 을 지원하는 password encoder
+  - bcrypt  <--  default algorithm
+
+암호화/복호화(양방향) 보다는 password 를 hashing 해서 저장한 후
+서로 비교해서 맞는지 알아보면 됨 (단방향으로 문자를 변경해서 저장함)
+- 사용자들은 일반적으로 같은 비밀번호를 여러 사이트에서 동일하게
+- 사용하는 경우가 많으므로 한 곳에서 비밀번호가 hacking 당하면
+- 여러 사이트에서의 정보를 모두 도난 당할 수 있음
+- 이를 방지하기 위해서 password 를 encoding 해야 함
+
+Hashing : 특정문자를 알고리즘에 따라서 변형해서 저장한다는 의미
+
+com.global.config 에 AppConfig 클래스 작성하기
+
+
+20230117
+
+[이메일 인증하기]
+
+GET 방식으로
+/check-email-token
+token=${token} email=${email}
+요청 처리하기
+  - 이메일이 정확하지 않으면 에러 처리함
+  - 토큰이 정확하지 않으면 에러 처리함
+  - 이메일과 토큰이 정확해야 가입 완료 처리 진행
+    - 가입 일시 설정
+    - 이메일 인증 여부로 true 설정하기
+
+인증 확인하는 View
+  - 입력값에 오류가 있는 경우에는 메세지를 출력함
+  - 인증이 완료된 경우에는 환영 메세지 출력하고
+    몇 번째 가입자인지 알려줌
+
+
+com.global.account.AccountController 클래스에서 아래 메소드 추가
+
+@GetMapping("/check-email-token")
+  public String checkEmailToken(String token, String email, Model model){
+    // 가입자가 입력한 이메일을 이미 사용하고 있는 회원이 있는지 확인하기
+    return "";
+  }
+
+checkEmailToken() 메소드에서 findByEmail() 을 호출하기 위해서
+accountRepository.findByEmail(email)
+AccountController 클래스에
+private final AccountRepository accountRepository 멤버 추가
+
+이하 checkEmailToken() 메소드 작성하기...
+
+templates/account 에 check-email.html 작성하기
+
+
+com.global.account.AccountService 클래스에서
+private Account saveNewAccount(SignUpForm signUpForm) 메소드의 파라미터에
+@Valid annotation 추가
+  ㄴ 객체 안에서 들어오는 값에 대해서 검증함
+<-- private Account saveNewAccount(@Valid SignUpForm signUpForm)
+
+@Transactional
+public void processNewAccount(SignUpForm signUpForm) 메소드에
+@Transactional annotation 설정
+ ㄴ newAccount 객체가 persistence 상태가 유지 되고
+    persistence 상태가 유지되는 객체는
+    Transaction 이 종료될 때, 상태를 DB 에 sync 하게 됨
+      ㄴ 이 상태에서 생성된 토큰값이 DB 에 저장됨
+
+    Account newAccount = saveNewAccount(signUpForm);
+    // 이메일 보내기 전에 토큰값 생성하기
+    newAccount.generateEmailCheckToken();
+    sendSignUpConfirmEmail(newAccount);
+
+test 폴더의
+com.global.account.AccountControllerTest 클래스의
+
+@DisplayName("회원 가입 처리 확인하기 - 입력값 정상인 경우")
+  @Test
+  void signUpSubmit_with_correct_input() throws Exception 메소드에
+
+  // token 값이 Null 이 아닌지(제대로 DB 에 저장되었는지) 확인하기
+      assertNotNull(account.getEmailCheckToken());
+    ㄴ 이 내용 추가하기
+
+
+[회원가입 : 인증메일확인 테스트하기]
+
+테스트 내용
+  - 입력값이 잘못 된 경우
+    - error Property (속성 - 변수)가 model 에 들어있는지 확인하기
+    - View 이름이 account/check-email 인지 확인하기
+  - 입력값이 맞는 경우
+    - Model 에 error 가 없는지 확인하기
+    - Model 에 numberOfUser 가 있는지 확인하기
+    - Model 에 nickName 이 있는지 확인하기
+    - View 이름 확인하기
+
+
+토큰값을 DB 에 저장하기 위해서
+AccountControllerTest 클래스에
+@Transactional 추가하기
+
+AccountController 클래스의
+  @GetMapping("/check-email-token")
+  public String checkEmailToken(String token, String email, Model model) 메소드에서
+
+  아래 code debugging 해 보기 - Account 클래스의 멤버변수에 어떤 값이 전달되었는지 확인함
+  if (!account.getEmailCheckToken().equals(token)){
+        model.addAttribute("error", "wrong email");
+        return view;
+      }
+
+AccountController 클래스의  checkEmailToken() 메소드에서 주석처리한 부분을
+Account 클래스의 completeSignUp() 메소드로 옮김
+
+AccountControllerTest 클래스 전체 테스트하기
+
+
