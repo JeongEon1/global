@@ -192,3 +192,326 @@ Account 클래스의 completeSignUp() 메소드로 옮김
 AccountControllerTest 클래스 전체 테스트하기
 
 
+[가입 완료 후 자동으로 로그인하기]
+
+  - 회원가입 완료 직후 자동 로그인
+  - 이메일 인증 완료 직후 자동 로그인
+
+  - Spring Security
+    - SecurityContext 에 Authentication(Token) 이 있는지 여부
+    - UsernamePasswordAuthenticationToken
+
+  - View
+    - 이메일 인증이 안 된 사용자의 경우, 인증 경고창 보여주기
+    - 이메일 인증을 마친 회원은 자동 로그인됨
+    - 로그인 되면 main navigation menu 변경됨
+
+
+AccountController 클래스에서
+checkEmailToken() 메소드에 code 추가하기
+ ㄴ if (!account.isValidToken(token)) 인 경우,
+    에러 메세지 보여주기
+
+Account 클래스에
+public boolean isValidToken(String token) 메소드 작성하기
+  public boolean isValidToken(String token) {
+    return this.emailCheckToken.equals(token);
+  }
+
+AccountService 클래스의
+public void processNewAccount(SignUpForm signUpForm) 메소드가
+Account 객체를 반환하도록 수정함
+
+public Account processNewAccount(SignUpForm signUpForm){
+ ..................
+  return newAccount;
+}
+
+AccountController 클래스의 public String signUpSubmit() 메소드에 code 추가
+<-- Account account = accountService.processNewAccount(signUpForm);
+        accountService.login(account);
+
+AccountService 클래스에
+public void login(Account account)  작성하기
+  // password 를 encoding 하기 때문에 아래의 방법으로 로그인함
+  public void login(Account account) {
+    UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(
+                                                        account.getNickName(),
+                                                        account.getPassword(),
+                                                        List.of(new SimpleGrantedAuthority("ROLE_USER"))
+                                                      );
+    // Spring 에서 제공하는 SecurityContextHolder 에서
+    // context 를 받아와서 인증하기
+    SecurityContext context = SecurityContextHolder.getContext();
+    context.setAuthentication(token);
+  }
+
+
+  [Authentication 객체를 사용해서 인증하는 방법]
+    ㄴ 이 방법은 password 를 encoding 하는 경우에는 사용할 수 없음
+       그래서, 지금은 위의 방법으로 함
+
+  public void login(Account account) {
+    UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(
+                                                        username, passwpord);
+    Authentication authentication = authenticationManager.authenticate(token);
+    // Spring 에서 제공하는 SecurityContextHolder 에서
+    // context 를 받아와서 인증하기
+    SecurityContext context = SecurityContextHolder.getContext();
+    context.setAuthentication(token);
+  }
+
+AccountController 클래스에서 code 추가
+accountService.login(account);
+
+AccountControllerTest 클래스의
+void checkEmailToken_with_wrong_input() throws Exception 에 code 추가
+  .andExpect(unauthenticated());
+     ㄴ 인증이 된 사용자가 아닌지 확인할 수 있음
+
+void checkEmailToken_with_correct_input() throws Exception 에 code 추가
+  .andExpect(authenticated().withUsername("global1000"));
+     ㄴ 인증이 된 사용자인지 확인할 수 있음
+
+void signUpForm() throws Exception 에 code 추가
+  .andExpect(unauthenticated())
+
+void signUpSubmit_with_wrong_input() throws Exception 에 code 추가
+  .andExpect(unauthenticated())
+
+void signUpSubmit_with_correct_input() throws Exception 에 code 추가
+  .andExpect(authenticated().withUsername("global1000"))
+
+
+AccountService 클래스에
+ private final AuthenticationManager authenticationManager;  추가 (X)
+
+
+AccountControllerTest 클래스 전체 테스트하기
+
+
+[회원가입 - 메인화면 네비게이션 메뉴 변경하기]
+
+  - View
+    - 이메일 인증이 안 된 사용자의 경우, 인증 경고창 보여주기
+    - 이메일 인증을 마친 회원은 자동 로그인됨
+    - 로그인 되면 main navigation menu 변경됨
+
+pom.xml 에서 아래의 dependency 가 있는지 확인하기
+    <dependency>
+			<groupId>org.thymeleaf.extras</groupId>
+			<artifactId>thymeleaf-extras-springsecurity5</artifactId>
+		</dependency>
+
+- 인증 정보가 없는 경우
+  - 로그인/가입 버튼 보여주기
+- 인증 정보가 있는 경우
+  - 알림/study 개설/profile dropdown menu 보여주기
+  - 이메일 인증을 하지 않은 사용자에게는 인증 경고창 띄우기
+
+
+index.html 에
+xmlns:sec="http://www.thymeleaf.org/extras/spring-security" 추가하고
+sec:authorize="!isAuthenticated" 설정하기
+
+      <li class="nav-item" sec:authorize="!isAuthenticated">
+        <a class="nav-link" href="#" th:href="@{/login}">로그인</a>
+      </li>
+      <li class="nav-item" sec:authorize="!isAuthenticated">
+        <a class="nav-link" href="#" th:href="@{/signup}">가입</a>
+      </li>
+
+
+[Front-end Library 설정]
+
+NPM 라이브러리 설치하기 (static 폴더에서 설치함)
+
+C:\workspace\springboot\global\src\main\resources\static>
+- package.json 에 프론트엔드 라이브러리 제공함
+- static 폴더(directory) 에서
+- package.json 을 사용해서 library 를 받으면
+- 정적 리소스로 프론트엔드 library 를 사용하게 됨
+
+- maven pom.xml 을 빌드할 때 static 디렉토리 아래에 있는
+- package.json 도 빌드하도록 설정함
+
+C:\workspace\springboot\global\src\main\resources\static> npm init
+
+
+[npm install bootstrap]
+
+node.js 설치하기
+  https://nodejs.org/ko/download/ 에서
+  Windows Installer (.msi)    >     64-bit 다운로드
+  node-v18.13.0-x64.msi 파일 우클릭하고 설치 클릭
+
+node.js 환경변수 설정
+환경변수 창에서
+시스템변수 > 새로 만들기 > 변수이름에 npm 를 입력 >
+변수값에 C:\Users\global\AppData\Roaming\npm 입력 > 확인
+
+시스템변수 > Path 선택 > 편집 > 새로 만들기 >
+C:\Program Files\nodejs\ 입력 후
+확인 세 차례 누름
+
+cmd 관리자 권한으로 실행해서
+node -v 입력하고 node.js 버전 확인하기
+
+cmd 관리자 권한으로 새로 실행해서
+
+아래와 같이 진행함
+
+Microsoft Windows [Version 10.0.19045.2486]
+(c) Microsoft Corporation. All rights reserved.
+
+C:\Windows\system32>cd C:\workspace\springboot\global\src\main\resources\static
+
+C:\workspace\springboot\global\src\main\resources\static>npm init
+This utility will walk you through creating a package.json file.
+It only covers the most common items, and tries to guess sensible defaults.
+
+See `npm help init` for definitive documentation on these fields
+and exactly what they do.
+
+Use `npm install <pkg>` afterwards to install a package and
+save it as a dependency in the package.json file.
+
+Press ^C at any time to quit.
+package name: (static)
+version: (1.0.0)
+description:
+entry point: (index.js)
+test command:
+git repository:
+keywords:
+author:
+license: (ISC)
+About to write to C:\workspace\springboot\global\src\main\resources\static\package.json:
+
+{
+  "name": "static",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}
+
+
+Is this OK? (yes) yes
+npm notice
+npm notice New major version of npm available! 8.19.3 -> 9.3.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v9.3.0
+npm notice Run npm install -g npm@9.3.0 to update!
+npm notice
+
+C:\workspace\springboot\global\src\main\resources\static>dir
+ C 드라이브의 볼륨에는 이름이 없습니다.
+ 볼륨 일련 번호: 0C7D-D29C
+
+ C:\workspace\springboot\global\src\main\resources\static 디렉터리
+
+2023-01-17  오후 04:16    <DIR>          .
+2023-01-17  오후 04:16    <DIR>          ..
+2023-01-16  오전 11:04    <DIR>          images
+2023-01-17  오후 03:40             4,343 index.html
+2023-01-17  오후 04:16               202 package.json
+               2개 파일               4,545 바이트
+               3개 디렉터리  36,128,419,840 바이트 남음
+
+C:\workspace\springboot\global\src\main\resources\static>npm install bootstrap
+
+added 2 packages, and audited 3 packages in 2s
+
+2 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+
+C:\workspace\springboot\global\src\main\resources\static>dir
+ C 드라이브의 볼륨에는 이름이 없습니다.
+ 볼륨 일련 번호: 0C7D-D29C
+
+ C:\workspace\springboot\global\src\main\resources\static 디렉터리
+
+2023-01-17  오후 04:17    <DIR>          .
+2023-01-17  오후 04:17    <DIR>          ..
+2023-01-16  오전 11:04    <DIR>          images
+2023-01-17  오후 03:40             4,343 index.html
+2023-01-17  오후 04:17    <DIR>          node_modules
+2023-01-17  오후 04:17             1,813 package-lock.json
+2023-01-17  오후 04:17               253 package.json
+               3개 파일               6,409 바이트
+               4개 디렉터리  36,118,069,248 바이트 남음
+
+C:\workspace\springboot\global\src\main\resources\static>
+
+
+
+
+
+pom.xml 에 아래 code (plugin) 추가
+
+<plugin>
+  <groupId>com.github.eirslett</groupId>
+  <artifactId>frontend-maven-plugin</artifactId>
+  <version>1.8.0</version>
+  <configuration>
+    <nodeVersion>v4.6.0</nodeVersion>
+    <workingDirectory>src/main/resources/static</workingDirectory>
+  </configuration>
+  <executions>
+    <execution>
+      <id>install node and npm</id>
+      <goals>
+        <goal>install-node-and-npm</goal>
+      </goals>
+      <phase>generate-resources</phase>
+    </execution>
+    <execution>
+      <id>npm install</id>
+      <goals>
+        <goal>npm</goal>
+      </goals>
+      <phase>generate-resources</phase>
+      <configuration>
+        <arguments>install</arguments>
+      </configuration>
+    </execution>
+  </executions>
+</plugin>
+
+
+새로 설정하고 프로젝트 실행해 보기
+  빌드
+  git(버전관리)
+  Security 설정하기
+
+
+Security 설정하기
+  com.global.config.SecurityConfig 클래스의
+  public void configure(WebSecurity web) 메소드에
+  .mvcMatchers("/node_modules/**") <-- 추가하기
+
+[git - commit]
+
+index.html 위치를
+resources > templates 디렉토리로 이동
+
+thymeleaf fragment 적용
+fragments.html 의 <head> 에
+th:fragment="head" 설정하고
+index.html dml <head> 에
+<head th:replace="fragments.html :: head"></head> 설정
+
+
+
+
+
+
+
+
+

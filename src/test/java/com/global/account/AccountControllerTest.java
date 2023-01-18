@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.then;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.response.SecurityMockMvcResultMatchers.authenticated;
 import static org.springframework.security.test.web.servlet.response.SecurityMockMvcResultMatchers.unauthenticated;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -44,7 +45,8 @@ class AccountControllerTest {
       .param("email", "testemail@google.com"))
       .andExpect(status().isOk())
       .andExpect(model().attributeExists("error"))
-      .andExpect(view().name("account/check-email"));
+      .andExpect(view().name("account/check-email"))
+      .andExpect(unauthenticated());
   }
 
   @DisplayName("인증 메일 확인 - 입력값이 맞는 경우")
@@ -72,10 +74,11 @@ class AccountControllerTest {
            .andExpect(model().attributeDoesNotExist("error"))
            .andExpect(model().attributeExists("nickName"))
            .andExpect(model().attributeExists("numberOfUser"))
-           .andExpect(view().name("account/check-email"));
+           .andExpect(view().name("account/check-email"))
+           .andExpect(authenticated().withUsername("global1000"));
   }
 
-  @DisplayName("회원 가입 화면 테스트")
+  @DisplayName("회원 가입 화면 테스트 - 화면이 보이는지 ...")
   @Test
   void signUpForm() throws Exception{
     mockMvc.perform(get("/sign-up"))
@@ -97,21 +100,24 @@ class AccountControllerTest {
            .param("password", "1234")
            .with(csrf()))
            .andExpect(status().isOk())
-           .andExpect(view().name("account/sign-up"));
+           .andExpect(view().name("account/sign-up"))
+           .andExpect(unauthenticated());
   }
 
   @DisplayName("회원 가입 처리 확인하기 - 입력값 정상인 경우")
   @Test
   void signUpSubmit_with_correct_input() throws Exception{
     mockMvc.perform(post("/sign-up")
-           .param("nickName", "test")
-           .param("email", "test@global.com")
+           .param("nickName", "global1000")
+           .param("email", "test@gmail.com")
            .param("password", "12345678")
            .with(csrf()))
            .andExpect(status().is3xxRedirection())
-           .andExpect(view().name("redirect:/"));
+           .andExpect(view().name("redirect:/"))
+           .andExpect(authenticated().withUsername("global1000"));
 
-    Account account = accountRepository.findByEmail("test@global.com");
+
+    Account account = accountRepository.findByEmail("test@gmail.com");
     // null 이 아닌지 확인하기
     assertNotNull(account);
     // 회원가입할 때 입력한 값과 encoding 된 값이 일치하지 않는지 확인하기
@@ -119,7 +125,7 @@ class AccountControllerTest {
     // token 값이 Null 이 아닌지(제대로 DB 에 저장되었는지) 확인하기
     assertNotNull(account.getEmailCheckToken());
     // 이메일 확인하기
-    assertTrue(accountRepository.existsByEmail("test@global.com"));
+    assertTrue(accountRepository.existsByEmail("test@gmail.com"));
     // mail 을 보내는지 test 하기
     then(javaMailSender).should().send(any(SimpleMailMessage.class));
   }

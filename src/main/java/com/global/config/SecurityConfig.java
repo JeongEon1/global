@@ -28,6 +28,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     // resource/static 에 있는 data 는 Spring Security 로 설정하지 않는 설정
     // resource/static/images 폴더에 있는 image 를 보이게 함
     web.ignoring()
-      .requestMatchers(PathRequest.toStaticResources().atCommonLocations());
+       .mvcMatchers("/node_modules/**")
+       .requestMatchers(PathRequest.toStaticResources().atCommonLocations());
   }
 }

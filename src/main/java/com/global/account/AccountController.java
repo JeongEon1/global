@@ -62,7 +62,8 @@ public class AccountController {
     }
     */
 
-    accountService.processNewAccount(signUpForm);
+    Account account = accountService.processNewAccount(signUpForm);
+    accountService.login(account);
     /*
      이 부분은 Service 에서 실행하는 부분이라서
      Controller 에서 작성하지 않는 것이 좋음
@@ -74,6 +75,7 @@ public class AccountController {
    */
     // 회원가입 폼이 제대로 입력된 경우,
     // Home(/) 으로 이동함
+
     return "redirect:/";
   }
 
@@ -92,6 +94,11 @@ public class AccountController {
       return view;
     }
 
+    if (!account.isValidToken(token)){
+      model.addAttribute("error", "wrong email");
+      return view;
+    }
+
     // 가입자가 입력한 이메일이 정상적으로 등록된 경우
     // token 확인하기
     if (!account.getEmailCheckToken().equals(token)){
@@ -100,6 +107,7 @@ public class AccountController {
     }
 
     account.completeSignUp();
+    accountService.login(account);
     /*
     아래 code 를 Account 클래스의 completeSignUp() 메소드로 옮기기
 
@@ -110,13 +118,10 @@ public class AccountController {
     */
     // 몇 번째(accountRepository.count()) 가입자인지... 처리하기
     model.addAttribute("numberOfUser", accountRepository.count());
-
     // nickname
     model.addAttribute("nickName", account.getNickName());
 
     return view;
-
   }
-
 
 }
